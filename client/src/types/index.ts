@@ -88,18 +88,32 @@ export interface Service {
 
 export interface Inquiry {
   id: string;
-  businessId: string;
+  businessId?: string;
+  business_id?: string;
   userId?: string;
+  user_id?: string;
   productId?: string;
+  product_id?: string;
   serviceId?: string;
-  customerName: string;
-  customerEmail: string;
-  customerPhone: string;
+  service_id?: string;
+  customerName?: string;
+  customer_name?: string;
+  customerEmail?: string;
+  customer_email?: string;
+  customerPhone?: string;
+  customer_phone?: string;
   subject: string;
   message: string;
   status: 'new' | 'contacted' | 'in_progress' | 'completed' | 'cancelled';
-  createdAt: string;
+  businessNotes?: string;
+  business_notes?: string;
+  createdAt?: string;
+  created_at?: string;
   businessName?: string;
+  business_name?: string;
+  business_slug?: string;
+  product_name?: string;
+  service_name?: string;
 }
 
 export interface ApiResponse<T = any> {

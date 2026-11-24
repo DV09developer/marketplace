@@ -8,7 +8,8 @@ import { businessApi } from '@/features/businesses/api';
 import { productApi } from '@/features/products/api';
 import { serviceApi } from '@/features/services/api';
 import { categoryApi } from '@/features/categories/api';
-import { Business, BusinessMember, Product, Service, Category } from '@/types';
+import { inquiryApi } from '@/features/inquiries/api';
+import { Business, BusinessMember, Product, Service, Category, Inquiry } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,6 +32,13 @@ import {
   Edit,
   Tag,
   IndianRupee,
+  Phone,
+  Mail,
+  Calendar,
+  MessageSquare,
+  Clock,
+  Filter,
+  Search,
 } from 'lucide-react';
 
 export default function BusinessConsolePage() {
@@ -43,9 +51,15 @@ export default function BusinessConsolePage() {
   const [members, setMembers] = useState<BusinessMember[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [services, setServices] = useState<Service[]>([]);
+  const [inquiries, setInquiries] = useState<Inquiry[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'services' | 'settings' | 'team'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'products' | 'services' | 'inquiries' | 'settings' | 'team'>('overview');
   const [loading, setLoading] = useState(true);
+
+  // Inquiry controls
+  const [inquiryFilterStatus, setInquiryFilterStatus] = useState<string>('all');
+  const [inquirySearch, setInquirySearch] = useState('');
+  const [updatingInquiryId, setUpdatingInquiryId] = useState<string | null>(null);
 
   // Settings form
   const [name, setName] = useState('');
@@ -82,12 +96,13 @@ export default function BusinessConsolePage() {
 
   const fetchBusinessData = async () => {
     try {
-      const [bizRes, membersRes, prodsRes, servsRes, catsRes] = await Promise.all([
+      const [bizRes, membersRes, prodsRes, servsRes, catsRes, inqRes] = await Promise.all([
         businessApi.getBusinessById(businessId),
         businessApi.getMembers(businessId),
         productApi.getBusinessProducts(businessId),
         serviceApi.getBusinessServices(businessId),
         categoryApi.getCategories(),
+        inquiryApi.getBusinessInquiries(businessId),
       ]);
 
       if (bizRes.success && bizRes.data?.business) {
@@ -109,6 +124,9 @@ export default function BusinessConsolePage() {
       if (servsRes.success && servsRes.data?.services) {
         setServices(servsRes.data.services);
       }
+      if (inqRes.success && inqRes.data?.inquiries) {
+        setInquiries(inqRes.data.inquiries);
+      }
       if (catsRes.success && catsRes.data?.categories) {
         setCategories(catsRes.data.categories);
         if (catsRes.data.categories.length > 0) {
@@ -120,6 +138,19 @@ export default function BusinessConsolePage() {
       // handled
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateInquiryStatus = async (inquiryId: string, status: any) => {
+    setUpdatingInquiryId(inquiryId);
+    const res = await inquiryApi.updateStatus(businessId, inquiryId, status);
+    setUpdatingInquiryId(null);
+    if (res.success) {
+      setInquiries((prev) =>
+        prev.map((i) => (i.id === inquiryId ? { ...i, status } : i))
+      );
+    } else {
+      alert(res.message || 'Failed to update inquiry status');
     }
   };
 
@@ -331,6 +362,21 @@ export default function BusinessConsolePage() {
           <Wrench className="w-4 h-4" /> Services ({services.length})
         </button>
         <button
+          onClick={() => setActiveTab('inquiries')}
+          className={`pb-3 px-4 text-sm font-semibold border-b-2 whitespace-nowrap transition flex items-center gap-2 ${
+            activeTab === 'inquiries'
+              ? 'border-blue-600 text-blue-600'
+              : 'border-transparent text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          <Inbox className="w-4 h-4" /> Inquiries ({inquiries.length})
+          {inquiries.filter((i) => i.status === 'new').length > 0 && (
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-blue-600 text-white">
+              {inquiries.filter((i) => i.status === 'new').length}
+            </span>
+          )}
+        </button>
+        <button
           onClick={() => setActiveTab('settings')}
           className={`pb-3 px-4 text-sm font-semibold border-b-2 whitespace-nowrap transition flex items-center gap-2 ${
             activeTab === 'settings'
@@ -367,11 +413,11 @@ export default function BusinessConsolePage() {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <Card className="bg-white border-slate-200">
               <CardContent className="pt-6 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase font-semibold">Total Profile Views</p>
+                  <p className="text-xs text-slate-500 uppercase font-semibold">Profile Views</p>
                   <p className="text-2xl font-bold text-slate-900 mt-1">{business.view_count ?? business.viewCount ?? 0}</p>
                 </div>
                 <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
@@ -383,7 +429,7 @@ export default function BusinessConsolePage() {
             <Card className="bg-white border-slate-200">
               <CardContent className="pt-6 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase font-semibold">Active Products</p>
+                  <p className="text-xs text-slate-500 uppercase font-semibold">Products</p>
                   <p className="text-2xl font-bold text-slate-900 mt-1">{products.length}</p>
                 </div>
                 <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
@@ -395,7 +441,7 @@ export default function BusinessConsolePage() {
             <Card className="bg-white border-slate-200">
               <CardContent className="pt-6 flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-slate-500 uppercase font-semibold">Active Services</p>
+                  <p className="text-xs text-slate-500 uppercase font-semibold">Services</p>
                   <p className="text-2xl font-bold text-slate-900 mt-1">{services.length}</p>
                 </div>
                 <div className="p-3 bg-purple-50 text-purple-600 rounded-xl">
@@ -403,16 +449,35 @@ export default function BusinessConsolePage() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card className="bg-white border-slate-200 cursor-pointer hover:border-blue-300 transition" onClick={() => setActiveTab('inquiries')}>
+              <CardContent className="pt-6 flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-semibold">Inquiries</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <p className="text-2xl font-bold text-slate-900">{inquiries.length}</p>
+                    {inquiries.filter((i) => i.status === 'new').length > 0 && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-700">
+                        {inquiries.filter((i) => i.status === 'new').length} new
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                  <Inbox className="w-6 h-6" />
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             <Card className="bg-white border-slate-200">
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2">
                   <Package className="w-4 h-4 text-emerald-600" /> Products Catalog
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Manage business products with multiple images, transparent pricing, and category tagging.
+                  Manage business products with multiple images and transparent pricing.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -428,12 +493,28 @@ export default function BusinessConsolePage() {
                   <Wrench className="w-4 h-4 text-purple-600" /> Services Catalog
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  List custom services, maintenance contracts, and solutions provided by your company.
+                  List custom services and maintenance contracts provided by your company.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Button className="w-full text-xs bg-purple-600 hover:bg-purple-700" onClick={() => setActiveTab('services')}>
                   <PlusCircle className="w-3.5 h-3.5 mr-1.5" /> Manage Services ({services.length})
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-white border-slate-200">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Inbox className="w-4 h-4 text-blue-600" /> Customer Inquiries
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Direct inquiries received exclusively from prospective buyers and clients.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button className="w-full text-xs bg-blue-600 hover:bg-blue-700" onClick={() => setActiveTab('inquiries')}>
+                  <Inbox className="w-3.5 h-3.5 mr-1.5" /> View Inquiries ({inquiries.length})
                 </Button>
               </CardContent>
             </Card>
@@ -736,7 +817,223 @@ export default function BusinessConsolePage() {
         </div>
       )}
 
-      {/* Tab 4: Settings */}
+      {/* Tab 4: Direct Inquiries */}
+      {activeTab === 'inquiries' && (
+        <div className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Direct Customer Inquiries</h2>
+              <p className="text-xs text-slate-500">
+                Inquiries sent exclusively to <strong className="text-blue-600">{business.name}</strong> from your profile and product listings.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-slate-500">Status Filter:</span>
+              <select
+                value={inquiryFilterStatus}
+                onChange={(e) => setInquiryFilterStatus(e.target.value)}
+                className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-800 outline-none"
+              >
+                <option value="all">All ({inquiries.length})</option>
+                <option value="new">New ({inquiries.filter((i) => i.status === 'new').length})</option>
+                <option value="contacted">Contacted ({inquiries.filter((i) => i.status === 'contacted').length})</option>
+                <option value="in_progress">In Progress ({inquiries.filter((i) => i.status === 'in_progress').length})</option>
+                <option value="completed">Completed ({inquiries.filter((i) => i.status === 'completed').length})</option>
+                <option value="cancelled">Cancelled ({inquiries.filter((i) => i.status === 'cancelled').length})</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="bg-white p-4 rounded-xl border border-slate-200">
+              <p className="text-xs text-slate-500 font-semibold uppercase">New Leads</p>
+              <p className="text-xl font-bold text-blue-600 mt-1">
+                {inquiries.filter((i) => i.status === 'new').length}
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-slate-200">
+              <p className="text-xs text-slate-500 font-semibold uppercase">Contacted</p>
+              <p className="text-xl font-bold text-purple-600 mt-1">
+                {inquiries.filter((i) => i.status === 'contacted').length}
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-slate-200">
+              <p className="text-xs text-slate-500 font-semibold uppercase">In Progress</p>
+              <p className="text-xl font-bold text-amber-600 mt-1">
+                {inquiries.filter((i) => i.status === 'in_progress').length}
+              </p>
+            </div>
+            <div className="bg-white p-4 rounded-xl border border-slate-200">
+              <p className="text-xs text-slate-500 font-semibold uppercase">Completed</p>
+              <p className="text-xl font-bold text-emerald-600 mt-1">
+                {inquiries.filter((i) => i.status === 'completed').length}
+              </p>
+            </div>
+          </div>
+
+          {/* Search Bar */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-white rounded-xl border border-slate-200 text-sm">
+            <Search className="w-4 h-4 text-slate-400 flex-shrink-0" />
+            <input
+              type="text"
+              placeholder="Search inquiries by customer name, email, phone, or subject..."
+              value={inquirySearch}
+              onChange={(e) => setInquirySearch(e.target.value)}
+              className="bg-transparent w-full outline-none text-slate-800 placeholder:text-slate-400 text-xs sm:text-sm"
+            />
+          </div>
+
+          {/* Inquiries List */}
+          {(() => {
+            const filteredInquiries = inquiries.filter((inq) => {
+              const matchesStatus =
+                inquiryFilterStatus === 'all' || inq.status === inquiryFilterStatus;
+              const matchesSearch =
+                !inquirySearch ||
+                (inq.customer_name || inq.customerName || '')
+                  .toLowerCase()
+                  .includes(inquirySearch.toLowerCase()) ||
+                (inq.customer_email || inq.customerEmail || '')
+                  .toLowerCase()
+                  .includes(inquirySearch.toLowerCase()) ||
+                (inq.customer_phone || inq.customerPhone || '')
+                  .toLowerCase()
+                  .includes(inquirySearch.toLowerCase()) ||
+                inq.subject.toLowerCase().includes(inquirySearch.toLowerCase()) ||
+                inq.message.toLowerCase().includes(inquirySearch.toLowerCase());
+              return matchesStatus && matchesSearch;
+            });
+
+            if (filteredInquiries.length === 0) {
+              return (
+                <Card className="bg-white border-slate-200 border-dashed p-10 text-center">
+                  <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-3">
+                    <Inbox className="w-6 h-6" />
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-base">No Inquiries Found</h3>
+                  <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                    {inquiries.length === 0
+                      ? 'No inquiries have been submitted to this business yet. They will appear here in real-time as customers reach out.'
+                      : 'No inquiries match the current filter or search criteria.'}
+                  </p>
+                </Card>
+              );
+            }
+
+            return (
+              <div className="space-y-4">
+                {filteredInquiries.map((inq) => {
+                  const custName = inq.customer_name || inq.customerName || 'Anonymous';
+                  const custEmail = inq.customer_email || inq.customerEmail || '';
+                  const custPhone = inq.customer_phone || inq.customerPhone || '';
+                  const itemBadge = inq.product_name || inq.service_name;
+                  const dateStr = inq.created_at || inq.createdAt;
+
+                  const statusColors: Record<string, string> = {
+                    new: 'bg-blue-100 text-blue-800 border-blue-200',
+                    contacted: 'bg-purple-100 text-purple-800 border-purple-200',
+                    in_progress: 'bg-amber-100 text-amber-800 border-amber-200',
+                    completed: 'bg-emerald-100 text-emerald-800 border-emerald-200',
+                    cancelled: 'bg-slate-100 text-slate-700 border-slate-200',
+                  };
+
+                  return (
+                    <Card key={inq.id} className="bg-white border-slate-200 shadow-sm overflow-hidden">
+                      <div className="p-5">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="font-bold text-slate-900 text-sm sm:text-base">{custName}</h4>
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                                  statusColors[inq.status] || 'bg-slate-100 text-slate-800'
+                                }`}
+                              >
+                                {inq.status.replace('_', ' ')}
+                              </span>
+                              {itemBadge && (
+                                <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-600 flex items-center gap-1">
+                                  <Tag className="w-3 h-3 text-slate-400" />
+                                  Item: {itemBadge}
+                                </span>
+                              )}
+                            </div>
+                            {dateStr && (
+                              <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                Received: {new Date(dateStr).toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Quick Status Updater */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500 font-medium">Update Status:</span>
+                            <select
+                              value={inq.status}
+                              disabled={updatingInquiryId === inq.id}
+                              onChange={(e) => handleUpdateInquiryStatus(inq.id, e.target.value)}
+                              className="h-8 px-2.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-800 outline-none focus:ring-1 focus:ring-blue-500"
+                            >
+                              <option value="new">New</option>
+                              <option value="contacted">Contacted</option>
+                              <option value="in_progress">In Progress</option>
+                              <option value="completed">Completed</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                            {updatingInquiryId === inq.id && (
+                              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Subject & Message */}
+                        <div className="mt-3">
+                          <p className="text-xs font-semibold text-slate-700">{inq.subject}</p>
+                          <div className="mt-1.5 p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs sm:text-sm text-slate-700 whitespace-pre-line">
+                            {inq.message}
+                          </div>
+                        </div>
+
+                        {/* Customer Actions & Contact Bar */}
+                        <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs">
+                          <div className="flex items-center gap-4 flex-wrap text-slate-600">
+                            {custPhone && (
+                              <a
+                                href={`tel:${custPhone}`}
+                                className="inline-flex items-center gap-1.5 font-semibold text-blue-600 hover:text-blue-700 hover:underline"
+                              >
+                                <Phone className="w-3.5 h-3.5" /> {custPhone}
+                              </a>
+                            )}
+                            {custEmail && (
+                              <a
+                                href={`mailto:${custEmail}?subject=${encodeURIComponent(
+                                  `Re: ${inq.subject}`
+                                )}`}
+                                className="inline-flex items-center gap-1.5 text-slate-600 hover:text-slate-900 hover:underline"
+                              >
+                                <Mail className="w-3.5 h-3.5" /> {custEmail}
+                              </a>
+                            )}
+                          </div>
+
+                          <div className="text-[11px] text-slate-400">
+                            Direct Inquiry Guarantee • Exclusive to this business
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* Tab 5: Settings */}
       {activeTab === 'settings' && (
         <Card className="bg-white border-slate-200 max-w-3xl">
           <CardHeader>

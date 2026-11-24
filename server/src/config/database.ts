@@ -73,9 +73,18 @@ export async function checkDatabaseConnection(): Promise<DatabaseHealthStatus> {
       client.release();
     }
   } catch (err: any) {
+    let errText = err?.message;
+    if (!errText && err?.code) {
+      errText = `Connection failed (${err.code})`;
+    } else if (err?.errors && Array.isArray(err.errors) && err.errors.length > 0) {
+      errText = err.errors.map((e: any) => e.message || e.code).join(', ');
+    } else if (!errText) {
+      errText = String(err);
+    }
+
     return {
       connected: false,
-      message: `Database connection unavailable: ${err?.message || 'Unknown error'}. Please configure valid DATABASE_URL in server/.env`,
+      message: `Database connection unavailable: ${errText}. Please configure valid DATABASE_URL in server/.env`,
     };
   }
 }

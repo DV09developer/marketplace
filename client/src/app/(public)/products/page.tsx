@@ -8,6 +8,7 @@ import { Product, Category } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Package, Search, MapPin, Building2, Tag, Loader2, ArrowRight } from 'lucide-react';
+import { InquiryDialog } from '@/components/marketplace/inquiry-dialog';
 
 export default function PublicProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -15,6 +16,7 @@ export default function PublicProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [selectedProductForInquiry, setSelectedProductForInquiry] = useState<Product | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -141,15 +143,30 @@ export default function PublicProductsPage() {
                     </span>
                   ) : <span />}
 
-                  <Link href={`/search?keyword=${encodeURIComponent(p.name)}`}>
-                    <Button size="sm" variant="outline" className="h-8 text-xs font-semibold text-blue-600 hover:text-blue-700">
-                      Send Inquiry
-                    </Button>
-                  </Link>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedProductForInquiry(p)}
+                    className="h-8 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                  >
+                    Send Inquiry
+                  </Button>
                 </CardFooter>
               </Card>
             ))}
           </div>
+        )}
+
+        {/* Direct Inquiry Dialog */}
+        {selectedProductForInquiry && (
+          <InquiryDialog
+            isOpen={!!selectedProductForInquiry}
+            onClose={() => setSelectedProductForInquiry(null)}
+            businessId={selectedProductForInquiry.businessId}
+            businessName={selectedProductForInquiry.businessName || 'Business'}
+            productId={selectedProductForInquiry.id}
+            productName={selectedProductForInquiry.name}
+          />
         )}
       </div>
     </div>

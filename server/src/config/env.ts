@@ -26,7 +26,9 @@ const envSchema = z.object({
   // Supabase Storage
   SUPABASE_URL: z.string().optional(),
   SUPABASE_ANON_KEY: z.string().optional(),
+  SUPABASE_PUBLISHABLE_KEY: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
+  SUPABASE_SECRET_KEY: z.string().optional(),
   SUPABASE_STORAGE_BUCKET: z.string().default('marketplace-assets'),
 
   // Admin Initial Setup
@@ -42,4 +44,8 @@ if (!parsedEnv.success) {
   throw new Error('Invalid environment configuration');
 }
 
-export const env = parsedEnv.data;
+export const env = {
+  ...parsedEnv.data,
+  SUPABASE_ANON_KEY: parsedEnv.data.SUPABASE_ANON_KEY || parsedEnv.data.SUPABASE_PUBLISHABLE_KEY,
+  SUPABASE_SERVICE_ROLE_KEY: parsedEnv.data.SUPABASE_SERVICE_ROLE_KEY || parsedEnv.data.SUPABASE_SECRET_KEY,
+};

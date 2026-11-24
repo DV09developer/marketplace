@@ -117,6 +117,29 @@ From the monorepo root:
 ## 🛡️ Key Features & Business Rules
 1. **Unified Dual-Role User Account**: A single registered user can act as both a buyer and a multi-business owner without separate login portals.
 2. **Direct Inquiry Isolation**: Inquiries are sent strictly to the specific selected business; no broadcasting or spam distribution.
-3. **Approval Gating**: Newly created businesses and listings require admin review before appearing in public searches.
-4. **Clean Layered Architecture**: Strictly separated Controller -> Service -> Repository layers with parameterized SQL queries.
+3. **Approval Gating**: Newly created businesses require admin review (`pending`) before appearing in public searches.
+4. **Clean Layered Architecture**: Strictly separated Controller -> Service -> Repository layers with parameterized SQL queries (`pg` native pool).
 5. **Secure Authentication**: Short-lived JWT access tokens with rotating refresh tokens stored in secure HTTP-only cookies.
+6. **Business Workspace Console**: Multi-tab console (`/my-businesses/[id]`) for products, services, direct inquiries with inline status updates, settings, and team member delegation.
+7. **Unified Search Engine**: PostgreSQL full-text search with UNION queries across approved businesses, published products, and published services.
+8. **Comprehensive Admin Portal**: Dedicated superadmin console (`/admin/dashboard`) with real-time KPI metrics, pending business moderation queue, category catalog management, user directory governance, and platform-wide inquiry audit.
+
+---
+
+## 🔐 Administrative Access & Seeding
+
+Admin accounts are provisioned securely and cannot be registered through public signup:
+
+- **Run database migrations**:
+  ```bash
+  npm --prefix server run db:migrate
+  ```
+- **Seed initial categories & superadmin**:
+  ```bash
+  npm --prefix server run db:seed
+  ```
+- **Default Superadmin Credentials** (configurable in `server/.env`):
+  - **Email**: `admin@marketplace.local`
+  - **Password**: `Admin@12345678`
+  - **Portal URL**: [http://localhost:3000/admin](http://localhost:3000/admin)
+

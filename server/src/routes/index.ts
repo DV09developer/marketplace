@@ -6,6 +6,8 @@ import businessRoutes from './business.routes';
 import productRoutes from './product.routes';
 import serviceRoutes from './service.routes';
 import searchRoutes from './search.routes';
+import inquiryRoutes from './inquiry.routes';
+import adminRoutes from './admin.routes';
 
 const router = Router();
 
@@ -29,5 +31,11 @@ router.use('/services', serviceRoutes);
 
 // Unified Search endpoint
 router.use('/search', searchRoutes);
+
+// Direct Customer Inquiry endpoints
+router.use('/inquiries', inquiryRoutes);
+
+// Admin Governance & Moderation endpoints
+router.use('/admin', adminRoutes);
 
 export default router;

@@ -62,6 +62,47 @@ export async function authenticate(
 }
 
 /**
+ * Middleware: Optional authentication. If user token is present and valid, sets req.user.
+ * Does not block guests.
+ */
+export async function optionalAuthenticate(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    let token: string | undefined;
+
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    } else if (req.cookies && req.cookies.accessToken) {
+      token = req.cookies.accessToken;
+    }
+
+    if (token) {
+      try {
+        const payload = verifyAccessToken(token);
+        const user = await userRepository.findById(payload.userId);
+        if (user && user.account_status === 'active') {
+          req.user = {
+            userId: user.id,
+            email: user.email,
+            role: user.role,
+            fullName: user.full_name,
+          };
+        }
+      } catch {
+        // Token invalid or expired - proceed as guest
+      }
+    }
+    next();
+  } catch (error) {
+    next();
+  }
+}
+
+/**
  * Middleware: Role-based authorization check
  */
 export function requireRole(...allowedRoles: Array<'user' | 'admin'>) {

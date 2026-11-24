@@ -4,9 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { businessApi } from '@/features/businesses/api';
+import { inquiryApi } from '@/features/inquiries/api';
+import { useAuth } from '@/features/auth/context';
 import { Business, Product, Service } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { InquiryDialog } from '@/components/marketplace/inquiry-dialog';
 import {
   Building2,
   MapPin,
@@ -23,6 +26,7 @@ import {
   MessageSquare,
   ArrowRight,
   CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 
 interface ExtendedBusiness extends Business {
@@ -34,10 +38,33 @@ interface ExtendedBusiness extends Business {
 export default function BusinessProfilePage() {
   const params = useParams();
   const slug = params.slug as string;
+  const { user } = useAuth();
 
   const [business, setBusiness] = useState<ExtendedBusiness | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'products' | 'services' | 'about'>('all');
   const [loading, setLoading] = useState(true);
+
+  // Modal dialog state
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<{ id: string; name: string } | undefined>(undefined);
+  const [selectedService, setSelectedService] = useState<{ id: string; name: string } | undefined>(undefined);
+
+  // Sidebar form state
+  const [sideName, setSideName] = useState(user?.fullName || '');
+  const [sideEmail, setSideEmail] = useState(user?.email || '');
+  const [sidePhone, setSidePhone] = useState(user?.phoneNumber || '');
+  const [sideMsg, setSideMsg] = useState('');
+  const [sideSubmitting, setSideSubmitting] = useState(false);
+  const [sideSuccess, setSideSuccess] = useState(false);
+  const [sideError, setSideError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      if (!sideName) setSideName(user.fullName);
+      if (!sideEmail) setSideEmail(user.email);
+      if (!sidePhone && user.phoneNumber) setSidePhone(user.phoneNumber);
+    }
+  }, [user]);
 
   useEffect(() => {
     if (slug) {
@@ -49,6 +76,50 @@ export default function BusinessProfilePage() {
       });
     }
   }, [slug]);
+
+  const handleSidebarSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!business) return;
+
+    setSideError(null);
+    setSideSubmitting(true);
+
+    const res = await inquiryApi.submitInquiry({
+      businessId: business.id,
+      customerName: sideName,
+      customerEmail: sideEmail,
+      customerPhone: sidePhone,
+      subject: `General inquiry for ${business.name}`,
+      message: sideMsg,
+    });
+
+    setSideSubmitting(false);
+
+    if (res.success) {
+      setSideSuccess(true);
+      setSideMsg('');
+    } else {
+      setSideError(res.message || 'Failed to send inquiry.');
+    }
+  };
+
+  const openInquiryForProduct = (p: Product) => {
+    setSelectedProduct({ id: p.id, name: p.name });
+    setSelectedService(undefined);
+    setDialogOpen(true);
+  };
+
+  const openInquiryForService = (s: Service) => {
+    setSelectedService({ id: s.id, name: s.name });
+    setSelectedProduct(undefined);
+    setDialogOpen(true);
+  };
+
+  const openGeneralInquiry = () => {
+    setSelectedProduct(undefined);
+    setSelectedService(undefined);
+    setDialogOpen(true);
+  };
 
   if (loading) {
     return (
@@ -126,11 +197,9 @@ export default function BusinessProfilePage() {
 
           {/* Quick CTA */}
           <div className="flex items-center gap-3 w-full md:w-auto">
-            <Link href={`#inquiry-section`} className="w-full md:w-auto">
-              <Button className="w-full bg-blue-600 hover:bg-blue-700 font-bold px-6 shadow-md gap-2">
-                <Send className="w-4 h-4" /> Send Direct Inquiry
-              </Button>
-            </Link>
+            <Button onClick={openGeneralInquiry} className="w-full bg-blue-600 hover:bg-blue-700 font-bold px-6 shadow-md gap-2">
+              <Send className="w-4 h-4" /> Send Direct Inquiry
+            </Button>
           </div>
         </div>
 
@@ -222,11 +291,14 @@ export default function BusinessProfilePage() {
                           </CardHeader>
                         </div>
                         <div className="p-4 pt-2 border-t flex justify-end">
-                          <Link href="#inquiry-section">
-                            <Button size="sm" variant="outline" className="h-8 text-xs font-semibold text-emerald-700 hover:bg-emerald-50">
-                              Inquire on this Product
-                            </Button>
-                          </Link>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openInquiryForProduct(p)}
+                            className="h-8 text-xs font-semibold text-emerald-700 hover:bg-emerald-50"
+                          >
+                            Inquire on this Product
+                          </Button>
                         </div>
                       </Card>
                     ))}
@@ -271,11 +343,14 @@ export default function BusinessProfilePage() {
                           </CardHeader>
                         </div>
                         <div className="p-4 pt-2 border-t flex justify-end">
-                          <Link href="#inquiry-section">
-                            <Button size="sm" variant="outline" className="h-8 text-xs font-semibold text-purple-700 hover:bg-purple-50">
-                              Inquire on this Service
-                            </Button>
-                          </Link>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openInquiryForService(s)}
+                            className="h-8 text-xs font-semibold text-purple-700 hover:bg-purple-50"
+                          >
+                            Inquire on this Service
+                          </Button>
                         </div>
                       </Card>
                     ))}
@@ -354,45 +429,95 @@ export default function BusinessProfilePage() {
               </CardContent>
             </Card>
 
-            {/* Direct Inquiry Target Callout */}
-            <div id="inquiry-section" className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
+            {/* Direct Inquiry Target Sidebar Box */}
+            <div id="inquiry-section" className="bg-blue-50 border border-blue-200 rounded-2xl p-6 shadow-sm">
               <div className="flex items-center gap-2 text-blue-800 font-bold text-sm mb-1">
                 <Send className="w-4 h-4 text-blue-600" /> Send Direct Inquiry
               </div>
               <p className="text-xs text-blue-700 mb-4">
-                <strong>Strict Privacy Rule:</strong> Your message will be sent exclusively to <strong>{business.name}</strong>. It will not be broadcast to competitors.
+                <strong>Strict Privacy Guarantee:</strong> Your message will be sent exclusively to <strong>{business.name}</strong>. It will not be broadcast to competitors.
               </p>
 
-              {/* Inquiry form placeholder - full management wired in Phase 7 */}
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Your Full Name"
-                  className="w-full text-xs p-2.5 rounded-lg border border-blue-200 bg-white outline-none"
-                />
-                <input
-                  type="email"
-                  placeholder="Your Email"
-                  className="w-full text-xs p-2.5 rounded-lg border border-blue-200 bg-white outline-none"
-                />
-                <input
-                  type="tel"
-                  placeholder="Your Phone Number"
-                  className="w-full text-xs p-2.5 rounded-lg border border-blue-200 bg-white outline-none"
-                />
-                <textarea
-                  rows={3}
-                  placeholder={`Hi ${business.name}, I am interested in your services and would like to request quotation details...`}
-                  className="w-full text-xs p-2.5 rounded-lg border border-blue-200 bg-white outline-none"
-                />
-                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-xs font-bold" onClick={() => alert('Full inquiry messaging is configured in Phase 7!')}>
-                  Submit Inquiry Directly to {business.name}
-                </Button>
-              </div>
+              {sideSuccess ? (
+                <div className="p-4 bg-emerald-100/70 border border-emerald-300 rounded-xl text-emerald-800 text-xs flex items-start gap-2">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5 text-emerald-600" />
+                  <div>
+                    <p className="font-bold">Inquiry Sent Successfully!</p>
+                    <p className="mt-0.5 text-[11px]">The business team has received your message and will contact you directly.</p>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleSidebarSubmit} className="space-y-3">
+                  {sideError && (
+                    <div className="p-2.5 bg-red-100 border border-red-200 text-red-700 text-xs rounded-lg flex items-center gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span>{sideError}</span>
+                    </div>
+                  )}
+
+                  <input
+                    type="text"
+                    placeholder="Your Full Name *"
+                    value={sideName}
+                    onChange={(e) => setSideName(e.target.value)}
+                    required
+                    className="w-full text-xs p-2.5 rounded-lg border border-blue-200 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="email"
+                    placeholder="Your Email Address *"
+                    value={sideEmail}
+                    onChange={(e) => setSideEmail(e.target.value)}
+                    required
+                    className="w-full text-xs p-2.5 rounded-lg border border-blue-200 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="tel"
+                    placeholder="Your Phone Number *"
+                    value={sidePhone}
+                    onChange={(e) => setSidePhone(e.target.value)}
+                    required
+                    className="w-full text-xs p-2.5 rounded-lg border border-blue-200 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <textarea
+                    rows={3}
+                    placeholder={`Hi ${business.name}, please contact me regarding quotation and availability...`}
+                    value={sideMsg}
+                    onChange={(e) => setSideMsg(e.target.value)}
+                    required
+                    className="w-full text-xs p-2.5 rounded-lg border border-blue-200 bg-white outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <Button
+                    type="submit"
+                    disabled={sideSubmitting}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-xs font-bold"
+                  >
+                    {sideSubmitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> Submitting...
+                      </>
+                    ) : (
+                      `Submit Direct to ${business.name}`
+                    )}
+                  </Button>
+                </form>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {/* Modal Dialog */}
+      <InquiryDialog
+        isOpen={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        businessId={business.id}
+        businessName={business.name}
+        productId={selectedProduct?.id}
+        productName={selectedProduct?.name}
+        serviceId={selectedService?.id}
+        serviceName={selectedService?.name}
+      />
     </div>
   );
 }

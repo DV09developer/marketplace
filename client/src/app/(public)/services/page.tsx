@@ -8,6 +8,7 @@ import { Service, Category } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Wrench, Search, MapPin, Building2, Loader2, ArrowRight } from 'lucide-react';
+import { InquiryDialog } from '@/components/marketplace/inquiry-dialog';
 
 export default function PublicServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
@@ -15,6 +16,7 @@ export default function PublicServicesPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
+  const [selectedServiceForInquiry, setSelectedServiceForInquiry] = useState<Service | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -141,15 +143,30 @@ export default function PublicServicesPage() {
                     </span>
                   ) : <span />}
 
-                  <Link href={`/search?keyword=${encodeURIComponent(s.name)}`}>
-                    <Button size="sm" variant="outline" className="h-8 text-xs font-semibold text-purple-600 hover:text-purple-700">
-                      Send Inquiry
-                    </Button>
-                  </Link>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedServiceForInquiry(s)}
+                    className="h-8 text-xs font-semibold text-purple-600 hover:text-purple-700"
+                  >
+                    Send Inquiry
+                  </Button>
                 </CardFooter>
               </Card>
             ))}
           </div>
+        )}
+
+        {/* Direct Inquiry Dialog */}
+        {selectedServiceForInquiry && (
+          <InquiryDialog
+            isOpen={!!selectedServiceForInquiry}
+            onClose={() => setSelectedServiceForInquiry(null)}
+            businessId={selectedServiceForInquiry.businessId}
+            businessName={selectedServiceForInquiry.businessName || 'Business'}
+            serviceId={selectedServiceForInquiry.id}
+            serviceName={selectedServiceForInquiry.name}
+          />
         )}
       </div>
     </div>

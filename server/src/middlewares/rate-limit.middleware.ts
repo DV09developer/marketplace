@@ -11,6 +11,17 @@ export const authLimiter = rateLimit({
   },
 });
 
+export const inquiryLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 20, // Max 20 inquiries per 15 minutes per IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Inquiry limit reached. Please wait a few minutes before submitting another inquiry.',
+  },
+});
+
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,
